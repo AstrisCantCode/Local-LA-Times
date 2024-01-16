@@ -95,14 +95,14 @@ def db_update():
                 file.write('This portion of the dataset was not done being appended at the time when it was downloaded.')
                 file.close()
 
-def db_fetch():
-    
-    local_files = {}
-
-    for year in os.listdir("/".join([package_path, 'database'])):
-        local_files[int(year)] = {}
-        for month in os.listdir("/".join([package_path, 'database', year])):
-            data_files = [x for x in os.listdir("/".join([package_path, 'database', year, month])) if x.endswith('.arrow')]
-            local_files[int(year)][int(month)] = data_files
-
-    return local_files
+###def db_fetch():
+###    
+###    local_files = {}
+###
+###    for year in os.listdir("/".join([package_path, 'database'])):
+###        local_files[int(year)] = {}
+###        for month in os.listdir("/".join([package_path, 'database', year])):
+###            data_files = [x for x in os.listdir("/".join([package_path, 'database', year, month])) if x.endswith('.arrow')]
+###            local_files[int(year)][int(month)] = data_files
+###
+###    return local_files
