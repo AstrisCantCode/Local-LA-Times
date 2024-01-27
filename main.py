@@ -1,5 +1,6 @@
 from readline import get_current_history_length
-from datasets import Dataset, load_from_disk
+from datasets import Dataset, load_dataset
+import pyarrow
 from bs4 import BeautifulSoup as bs
 from .utils import get_current_ym, get_num_proc
 from .fetchMonthArticle import monthArticlesFetch
@@ -12,8 +13,6 @@ from .fetchYMD import ymdFetch
 from .fetchArticle import articleFetch
 # articleFetch takes a dataset row (dict), fetches ['author', 'dateTime', 'text'] using ['url'], updates the dict, 
 # and returns it, setting 'needs_collection' to false if it successfully fetches the article. (Still runs if needs_collection=False!)
-
-datasets.disable_progress_bars()
 
 package_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -71,6 +70,9 @@ def db_update():
         if year not in local_ymd.keys():
             local_ymd[year] = []
         ymd_needs_download[year] = [x for x in ymd[year] if x not in local_ymd[year]]
+        if ymd_needs_download[year] == []:
+            del ymd_needs_download[year]
+
 
     current_year, current_month = get_current_ym()
 
@@ -95,14 +97,27 @@ def db_update():
                 file.write('This portion of the dataset was not done being appended at the time when it was downloaded.')
                 file.close()
 
-###def db_fetch():
-###    
-###    local_files = {}
-###
-###    for year in os.listdir("/".join([package_path, 'database'])):
-###        local_files[int(year)] = {}
-###        for month in os.listdir("/".join([package_path, 'database', year])):
-###            data_files = [x for x in os.listdir("/".join([package_path, 'database', year, month])) if x.endswith('.arrow')]
-###            local_files[int(year)][int(month)] = data_files
-###
-###    return local_files
+def db_fetch():
+    
+    local_files = {}
+    local_files_list = []
+
+    for year in os.listdir("/".join([package_path, 'database'])):
+        local_files[int(year)] = {}
+        for month in os.listdir("/".join([package_path, 'database', year])):
+            data_files = [x for x in os.listdir("/".join([package_path, 'database', year, month])) if x.endswith('.arrow')]
+            local_files[int(year)][int(month)] = data_files
+            local_files_list.extend(["/".join([package_path, 'database', year, month, x]) for x in data_files])
+
+    dataset = load_dataset('arrow', data_files=local_files_list, split='train')
+
+    old_features = dataset.features
+    old_features.pop('author') # feature that didn't pan out. 
+    old_features.pop('needs_collection')
+
+    dataset = dataset.add_column('dateTime2', pyarrow.compute.strptime(dataset.data.table['dateTime'], "%Y-%m-%dT%H:%M:%S.000Z", "s", error_is_null=True)).remove_columns('dateTime').rename_column('dateTime2', 'dateTime')
+    dataset = dataset.select_columns([x for x in old_features.keys()]) # restore order
+
+    dataset = dataset.sort('dateTime', reverse=True)
+
+    return dataset

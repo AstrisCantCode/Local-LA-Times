@@ -5,16 +5,9 @@ from func_timeout import func_set_timeout, FunctionTimedOut
 from .utils import parsed_from_url
 
 def getDateTime(parsedpage):
-    DTobj = parsedpage.find(class_='published-date')
-    if DTobj is not None:
-        return DTobj['datetime']
-    else:
-        return ""
-    
-def getAuthor(parsedpage):
-    author = parsedpage.find(class_='byline-text')
-    if author is not None:
-        return list(author.children)[1].strip(' ')
+    dateTime = parsedpage.find(class_='published-date')
+    if dateTime is not None:
+        return dateTime['datetime']
     else:
         return ""
 
@@ -36,13 +29,15 @@ def getArticleInfo(url):
             failed = False
         except:
             print('Function errored. Retrying.')
+    if failed == True:
+        print('Function failed after 3 attempts.')
+        raise Exception()
 
     dateTime = getDateTime(parsed)
-    author = getAuthor(parsed)
     text = getText(parsed)
 
     return {
-        'author': author,
+        'author': "",
         'dateTime': dateTime,
         'text': text,
         'needs_collection': False
@@ -53,9 +48,8 @@ def articleFetch(rowDict: dict) -> dict:
         newinfo = getArticleInfo(rowDict['url'])
     except (KeyboardInterrupt, SystemExit):
         raise
-    except Exception as e:
+    except:
         print(f"Got an exception. url: {rowDict['url']}")
-        print(e)
         newinfo = {'author': "", 'dateTime': "", 'text': "", 'needs_collection': True} # if it fails, it still must be collected (although perhaps later)
     rowDict.update(newinfo)
     return rowDict
